@@ -564,7 +564,7 @@
       '<button class="play-btn" data-audio="vorschau-' + ep.slug + '" aria-label="Vorschau abspielen">' +
         '<span class="ico"></span> Vorhören (<span class="countdown">--</span> Sek.)' +
       '</button>' +
-      '<audio id="vorschau-' + ep.slug + '" preload="none" style="display:none">' +
+      '<audio id="vorschau-' + ep.slug + '" preload="metadata" style="display:none">' +
         '<source src="' + escapeHtml(ep.preview_audio_url) + '" type="audio/mpeg">' +
       '</audio>'
     ) : "";
