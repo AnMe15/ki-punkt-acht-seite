@@ -521,6 +521,13 @@
     return WOCHENTAGE[(d.getDay() + 6) % 7] + ", " + d.getDate() + ". " + MONATE[d.getMonth()] + " " + d.getFullYear();
   }
 
+  function erzeugtUmDe(isoZeitstempel) {
+    if (!isoZeitstempel) return null;
+    var d = new Date(isoZeitstempel);
+    if (isNaN(d.getTime())) return null;
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + " Uhr";
+  }
+
   function escapeHtml(text) {
     var div = document.createElement("div");
     div.textContent = text == null ? "" : String(text);
@@ -566,6 +573,11 @@
     var badgeSpezial = WOCHENTYP_LABEL[ep.weekday_type]
       ? '<span class="badge spezial">' + WOCHENTYP_LABEL[ep.weekday_type] + '</span>' : "";
 
+    var erzeugtUm = erzeugtUmDe(ep.created_at);
+    var badgeErzeugt = erzeugtUm
+      ? '<span class="sep">·</span><span class="badge" title="Automatisch von der Pipeline erzeugt, kein manueller Upload">Erzeugt ' + erzeugtUm + '</span>'
+      : "";
+
     var audioId = "audio-" + ep.slug;
     var vorschauBtn = ep.preview_audio_url ? (
       '<button class="play-btn" data-audio="vorschau-' + ep.slug + '" aria-label="Vorschau abspielen">' +
@@ -583,7 +595,7 @@
           '<span class="mono" id="dauer-' + ep.slug + '">--:--</span>' +
           '<span class="sep">·</span>' +
           '<span class="badge">' + themenListe.length + ' Themen</span>' +
-          badgeSpezial +
+          badgeSpezial + badgeErzeugt +
         '</div>' +
         '<blockquote class="hook">' +
           '<span class="hook-text">„' + escapeHtml(hookAusSkript(ep.script_text)) + '"</span>' +
@@ -666,19 +678,25 @@
     });
   }
 
-  Promise.all([
-    fetchApi("public_episodes?select=*&order=publish_date.desc&limit=" + LIMIT),
-    fetchApi("public_episode_topics?select=*&order=position.asc")
-  ]).then(function (ergebnisse) {
-    var episoden = ergebnisse[0];
-    var themen = ergebnisse[1];
-    var root = document.getElementById("episodes-root");
+  var root = document.getElementById("episodes-root");
 
+  fetchApi("public_episodes?select=*&order=publish_date.desc&limit=" + LIMIT).then(function (episoden) {
     if (!episoden.length) {
       root.innerHTML = '<p class="loading-msg">Noch keine veröffentlichte Folge — die erste kommt automatisch, sobald sie fertig ist.</p>';
-      return;
+      return Promise.resolve();
     }
 
+    // Themen NUR fuer die tatsaechlich angezeigten Folgen laden (episode_slug=in.(...)) --
+    // ohne diesen Filter waechst die Themen-Abfrage mit JEDER je veroeffentlichten Folge
+    // weiter, obwohl die Seite ohnehin nur die letzten LIMIT Folgen zeigt.
+    var slugListe = episoden.map(function (ep) { return '"' + ep.slug + '"'; }).join(",");
+    return fetchApi("public_episode_topics?select=*&episode_slug=in.(" + slugListe + ")&order=position.asc")
+      .then(function (themen) { seiteRendern(episoden, themen); });
+  }).catch(function (err) {
+    root.innerHTML = '<p class="loading-msg">Folgen konnten gerade nicht geladen werden (' + escapeHtml(err.message) + ').</p>';
+  });
+
+  function seiteRendern(episoden, themen) {
     var html = '<div class="section-label">Neueste Folge</div>' + baueEpisodeKarte(episoden[0], themen);
 
     if (episoden.length > 1) {
@@ -693,10 +711,7 @@
     root.innerHTML = html;
     episoden.forEach(function (ep) { dauerAnzeigen(ep.slug); });
     root.querySelectorAll(".play-btn").forEach(vorschauKnopfVerdrahten);
-  }).catch(function (err) {
-    document.getElementById("episodes-root").innerHTML =
-      '<p class="loading-msg">Folgen konnten gerade nicht geladen werden (' + escapeHtml(err.message) + ').</p>';
-  });
+  }
 })();
 </script>
 
