@@ -394,6 +394,29 @@
   .older-section[open] > .older-toggle .chevron { transform: rotate(90deg); }
   .older-list { display: flex; flex-direction: column; gap: 1.4rem; margin-top: 1rem; }
 
+  .play-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 0.6rem 1.15rem 0.6rem 0.9rem;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    flex: 0 0 auto;
+  }
+  .play-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px var(--accent-soft); }
+  .play-btn:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .play-btn .ico { font-size: 0.9rem; line-height: 1; }
+  .play-btn.playing .ico::before { content: "❚❚"; }
+  .play-btn:not(.playing) .ico::before { content: "▶"; }
+
   .full-player {
     display: inline-flex;
     align-items: center;
@@ -537,6 +560,14 @@
       ? '<span class="badge spezial">' + WOCHENTYP_LABEL[ep.weekday_type] + '</span>' : "";
 
     var audioId = "audio-" + ep.slug;
+    var vorschauBtn = ep.preview_audio_url ? (
+      '<button class="play-btn" data-audio="vorschau-' + ep.slug + '" aria-label="Vorschau abspielen">' +
+        '<span class="ico"></span> Vorhören (<span class="countdown">--</span> Sek.)' +
+      '</button>' +
+      '<audio id="vorschau-' + ep.slug + '" preload="none" style="display:none">' +
+        '<source src="' + escapeHtml(ep.preview_audio_url) + '" type="audio/mpeg">' +
+      '</audio>'
+    ) : "";
     return '' +
       '<div class="episode">' +
         '<div class="episode-meta">' +
@@ -559,8 +590,9 @@
           '</details>'
         ) : "") +
         '<div class="controls">' +
+          vorschauBtn +
           '<div class="full-player">' +
-            '<span class="full-player-label">Anhören</span>' +
+            '<span class="full-player-label">Ganze Folge</span>' +
             '<audio id="' + audioId + '" controls preload="metadata" src="' + escapeHtml(ep.audio_url) + '"></audio>' +
           '</div>' +
         '</div>' +
@@ -575,6 +607,55 @@
       if (!audio.duration || isNaN(audio.duration)) return;
       var s = Math.round(audio.duration);
       ziel.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    });
+  }
+
+  var aktuellerVorschauSpieler = null;
+
+  function vorschauKnopfVerdrahten(btn) {
+    var audio = document.getElementById(btn.dataset.audio);
+    if (!audio) return;
+    var countdownEl = btn.querySelector(".countdown");
+
+    audio.addEventListener("loadedmetadata", function () {
+      if (!btn.dataset.startWert && audio.duration && !isNaN(audio.duration)) {
+        btn.dataset.startWert = String(Math.ceil(audio.duration));
+        if (!btn.classList.contains("playing")) countdownEl.textContent = btn.dataset.startWert;
+      }
+    });
+
+    function zuruecksetzen() {
+      if (btn.dataset.startWert) countdownEl.textContent = btn.dataset.startWert;
+    }
+
+    btn.addEventListener("click", function () {
+      if (aktuellerVorschauSpieler && aktuellerVorschauSpieler !== audio) {
+        aktuellerVorschauSpieler.pause();
+        aktuellerVorschauSpieler.currentTime = 0;
+        var vorherigerBtn = document.querySelector(".play-btn.playing");
+        if (vorherigerBtn) {
+          vorherigerBtn.classList.remove("playing");
+          var vorherigerCountdown = vorherigerBtn.querySelector(".countdown");
+          if (vorherigerCountdown && vorherigerBtn.dataset.startWert) vorherigerCountdown.textContent = vorherigerBtn.dataset.startWert;
+        }
+      }
+      if (audio.paused) {
+        audio.play();
+        btn.classList.add("playing");
+        aktuellerVorschauSpieler = audio;
+      } else {
+        audio.pause();
+        btn.classList.remove("playing");
+        zuruecksetzen();
+      }
+    });
+    audio.addEventListener("timeupdate", function () {
+      if (!audio.duration || isNaN(audio.duration)) return;
+      countdownEl.textContent = Math.max(0, Math.ceil(audio.duration - audio.currentTime));
+    });
+    audio.addEventListener("ended", function () {
+      btn.classList.remove("playing");
+      zuruecksetzen();
     });
   }
 
@@ -604,6 +685,7 @@
 
     root.innerHTML = html;
     episoden.forEach(function (ep) { dauerAnzeigen(ep.slug); });
+    root.querySelectorAll(".play-btn").forEach(vorschauKnopfVerdrahten);
   }).catch(function (err) {
     document.getElementById("episodes-root").innerHTML =
       '<p class="loading-msg">Folgen konnten gerade nicht geladen werden (' + escapeHtml(err.message) + ').</p>';
