@@ -439,13 +439,77 @@
     color: var(--ink-soft);
     white-space: nowrap;
   }
-  .full-player audio {
-    flex: 1 1 auto;
-    min-width: 200px;
-    max-width: 340px;
+
+  /* 28.08.: eigener Player statt "<audio controls>" -- mobile Browser (v.a. Android
+     Chrome) zeigten den nativen Verlaufsbalken bei der noetigen schmalen Breite oft
+     gar nicht an, nur einen Play-Knopf. Selbst gebaut sieht das auf jedem Geraet gleich aus. */
+  .folge-play-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
     height: 32px;
-    accent-color: var(--signal);
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 999px;
+    background: var(--signal);
+    color: #FFFFFF;
+    cursor: pointer;
+    transition: transform 0.12s ease;
   }
+  .folge-play-btn:hover { transform: translateY(-1px); }
+  .folge-play-btn:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  .folge-play-btn .ico { font-size: 0.7rem; line-height: 1; }
+  .folge-play-btn .ico::before { content: "▶"; }
+  .folge-play-btn.playing .ico::before { content: "❚❚"; }
+
+  .folge-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1 1 auto;
+    min-width: 140px;
+  }
+  .folge-progress-track {
+    position: relative;
+    flex: 1 1 auto;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--rule);
+    cursor: pointer;
+  }
+  .folge-progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    border-radius: 999px;
+    background: var(--signal);
+  }
+  .folge-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .folge-speed-select {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: var(--rule);
+    border: none;
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .folge-speed-select:hover { background: var(--signal-soft); color: var(--signal); }
+  .folge-speed-select:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 
   .snippet-note {
     font-family: 'IBM Plex Mono', monospace;
@@ -470,6 +534,11 @@
   @media (max-width: 560px) {
     h1.wordmark { font-size: 2.1rem; }
     .episode { padding: 1.4rem 1.3rem; }
+    /* Genug Platz fuer Reinhoeren-Knopf + Ganze-Folge-Player auf schmalen Screens
+       sicherstellen -- Label weglassen (Kontext ist durch den Play-Knopf daneben
+       klar), Balken darf schmaler werden statt zu ueberlaufen. */
+    .full-player-label { display: none; }
+    .folge-progress-wrap { min-width: 90px; }
   }
 </style>
 </head>
@@ -622,9 +691,26 @@
         ) : "") +
         '<div class="controls">' +
           vorschauBtn +
-          '<div class="full-player">' +
+          '<div class="full-player" data-audio="' + audioId + '">' +
             '<span class="full-player-label">Ganze Folge</span>' +
-            '<audio id="' + audioId + '" controls preload="metadata" src="' + escapeHtml(ep.audio_url) + '"></audio>' +
+            '<button class="folge-play-btn" data-audio="' + audioId + '" aria-label="Ganze Folge abspielen">' +
+              '<span class="ico"></span>' +
+            '</button>' +
+            '<div class="folge-progress-wrap">' +
+              '<div class="folge-progress-track" data-audio="' + audioId + '" role="slider" aria-label="Wiedergabeposition" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
+                '<div class="folge-progress-fill"></div>' +
+              '</div>' +
+              '<span class="folge-time"><span class="folge-current">0:00</span> / <span class="folge-total">--:--</span></span>' +
+              '<select class="folge-speed-select" aria-label="Wiedergabegeschwindigkeit">' +
+                '<option value="0.75">0.75×</option>' +
+                '<option value="1" selected>1×</option>' +
+                '<option value="1.25">1.25×</option>' +
+                '<option value="1.5">1.5×</option>' +
+                '<option value="1.75">1.75×</option>' +
+                '<option value="2">2×</option>' +
+              '</select>' +
+            '</div>' +
+            '<audio id="' + audioId + '" preload="metadata" src="' + escapeHtml(ep.audio_url) + '" style="display:none"></audio>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -641,7 +727,17 @@
     });
   }
 
-  var aktuellerVorschauSpieler = null;
+  // Gemeinsam fuer Vorschau- UND Ganze-Folge-Player: nur einer spielt gleichzeitig,
+  // egal welcher Typ -- sonst laeuft eine Vorschau parallel zu einer vollen Folge weiter.
+  var aktuellerSpieler = null;
+  var aktuellerSpielerStopp = null; // Funktion, die den gerade laufenden Spieler visuell zuruecksetzt
+
+  function spielerStoppen() {
+    if (aktuellerSpieler) {
+      aktuellerSpieler.pause();
+      if (aktuellerSpielerStopp) aktuellerSpielerStopp();
+    }
+  }
 
   function vorschauKnopfVerdrahten(btn) {
     var audio = document.getElementById(btn.dataset.audio);
@@ -656,27 +752,22 @@
     });
 
     function zuruecksetzen() {
+      btn.classList.remove("playing");
       if (btn.dataset.startWert) countdownEl.textContent = btn.dataset.startWert;
     }
 
     btn.addEventListener("click", function () {
-      if (aktuellerVorschauSpieler && aktuellerVorschauSpieler !== audio) {
-        aktuellerVorschauSpieler.pause();
-        aktuellerVorschauSpieler.currentTime = 0;
-        var vorherigerBtn = document.querySelector(".play-btn.playing");
-        if (vorherigerBtn) {
-          vorherigerBtn.classList.remove("playing");
-          var vorherigerCountdown = vorherigerBtn.querySelector(".countdown");
-          if (vorherigerCountdown && vorherigerBtn.dataset.startWert) vorherigerCountdown.textContent = vorherigerBtn.dataset.startWert;
-        }
+      if (aktuellerSpieler && aktuellerSpieler !== audio) {
+        aktuellerSpieler.currentTime = 0;
+        spielerStoppen();
       }
       if (audio.paused) {
         audio.play();
         btn.classList.add("playing");
-        aktuellerVorschauSpieler = audio;
+        aktuellerSpieler = audio;
+        aktuellerSpielerStopp = zuruecksetzen;
       } else {
         audio.pause();
-        btn.classList.remove("playing");
         zuruecksetzen();
       }
     });
@@ -684,10 +775,74 @@
       if (!audio.duration || isNaN(audio.duration)) return;
       countdownEl.textContent = Math.max(0, Math.ceil(audio.duration - audio.currentTime));
     });
-    audio.addEventListener("ended", function () {
+    audio.addEventListener("ended", zuruecksetzen);
+  }
+
+  // 28.08.-Fund (Lehrer-Feedback): der native "<audio controls>"-Player zeigte auf
+  // mobilen Browsern (v.a. Android Chrome) bei der noetigen schmalen Breite oft nur
+  // einen Play-Knopf, der Verlaufsbalken fiel weg -- reines Browser-Rendering, nicht
+  // per CSS steuerbar. Jetzt komplett selbst gebaut, nach demselben Muster wie der
+  // Vorschau-Button, damit der Balken auf jedem Geraet gleich aussieht.
+  function folgeSpielerVerdrahten(container) {
+    var audioId = container.dataset.audio;
+    var audio = document.getElementById(audioId);
+    var btn = container.querySelector(".folge-play-btn");
+    var track = container.querySelector(".folge-progress-track");
+    var fill = container.querySelector(".folge-progress-fill");
+    var currentEl = container.querySelector(".folge-current");
+    var totalEl = container.querySelector(".folge-total");
+    var speedSelect = container.querySelector(".folge-speed-select");
+    if (!audio || !btn || !track) return;
+
+    if (speedSelect) {
+      speedSelect.addEventListener("change", function () {
+        audio.playbackRate = parseFloat(speedSelect.value);
+      });
+    }
+
+    function formatiere(sek) {
+      sek = Math.max(0, Math.round(sek));
+      return Math.floor(sek / 60) + ":" + String(sek % 60).padStart(2, "0");
+    }
+
+    function zuruecksetzen() {
       btn.classList.remove("playing");
-      zuruecksetzen();
+    }
+
+    audio.addEventListener("loadedmetadata", function () {
+      if (audio.duration && !isNaN(audio.duration)) totalEl.textContent = formatiere(audio.duration);
     });
+
+    btn.addEventListener("click", function () {
+      if (aktuellerSpieler && aktuellerSpieler !== audio) spielerStoppen();
+      if (audio.paused) {
+        audio.play();
+        btn.classList.add("playing");
+        aktuellerSpieler = audio;
+        aktuellerSpielerStopp = zuruecksetzen;
+      } else {
+        audio.pause();
+        zuruecksetzen();
+      }
+    });
+
+    audio.addEventListener("timeupdate", function () {
+      if (!audio.duration || isNaN(audio.duration)) return;
+      var anteil = (audio.currentTime / audio.duration) * 100;
+      fill.style.width = anteil + "%";
+      track.setAttribute("aria-valuenow", Math.round(anteil));
+      currentEl.textContent = formatiere(audio.currentTime);
+    });
+
+    audio.addEventListener("ended", zuruecksetzen);
+
+    function anSpringen(clientX) {
+      if (!audio.duration || isNaN(audio.duration)) return;
+      var rect = track.getBoundingClientRect();
+      var anteil = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      audio.currentTime = anteil * audio.duration;
+    }
+    track.addEventListener("click", function (ev) { anSpringen(ev.clientX); });
   }
 
   var root = document.getElementById("episodes-root");
@@ -723,6 +878,7 @@
     root.innerHTML = html;
     episoden.forEach(function (ep) { dauerAnzeigen(ep.slug); });
     root.querySelectorAll(".play-btn").forEach(vorschauKnopfVerdrahten);
+    root.querySelectorAll(".full-player").forEach(folgeSpielerVerdrahten);
   }
 })();
 </script>
