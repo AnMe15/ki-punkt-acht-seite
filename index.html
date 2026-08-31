@@ -617,7 +617,11 @@
 
   function hookAusSkript(scriptText) {
     if (!scriptText) return "";
-    var ersteZeile = scriptText.split("\n")[0] || "";
+    // 31.08.-Fund: seit skript.py ">>>THEMA<<<"-Markerzeilen vor jedem Themenwechsel
+    // einfuegt (fuers Audio-Chunking in produce.py, siehe podcast_config.py), stand diese
+    // Zeile hier woertlich als Zitat auf der Seite -- Markerzeilen ueberspringen.
+    var zeilen = scriptText.split("\n").filter(function (z) { return z.trim() !== ">>>THEMA<<<"; });
+    var ersteZeile = zeilen[0] || "";
     var doppelpunkt = ersteZeile.indexOf(":");
     return doppelpunkt >= 0 ? ersteZeile.slice(doppelpunkt + 1).trim() : ersteZeile.trim();
   }
