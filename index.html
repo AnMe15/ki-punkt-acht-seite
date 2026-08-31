@@ -550,7 +550,7 @@
 
   <div class="topbar">
     <span class="brandmark">KI · PUNKT · ACHT</span>
-    <span class="on-air"><span class="dot"></span>läuft automatisch</span>
+    <span class="on-air" id="onAirBadge"><span class="dot"></span>läuft automatisch</span>
   </div>
 
   <div class="hero">
@@ -867,7 +867,18 @@
     root.innerHTML = '<p class="loading-msg">Folgen konnten gerade nicht geladen werden (' + escapeHtml(err.message) + ').</p>';
   });
 
+  function setzeProduktionskostenTooltip(neuesteFolge) {
+    // Bewusst diskret: nur als native title-Tooltip auf dem "läuft automatisch"-Badge,
+    // kein sichtbarer Hinweis, kein eigener Link -- niemand stolpert zufaellig darueber.
+    // Kein Wort zu einem Hoerer-Preis in irgendeine Richtung, nur reine Herstellungskosten.
+    var badge = document.getElementById("onAirBadge");
+    if (!badge || neuesteFolge.kosten == null) return;
+    var betrag = Number(neuesteFolge.kosten).toFixed(2).replace(".", ",");
+    badge.title = "Produktionskosten dieser Folge: " + betrag + " €";
+  }
+
   function seiteRendern(episoden, themen) {
+    setzeProduktionskostenTooltip(episoden[0]);
     var html = '<div class="section-label">Neueste Folge</div>' + baueEpisodeKarte(episoden[0], themen);
 
     if (episoden.length > 1) {
