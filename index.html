@@ -276,7 +276,19 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    transition: opacity 0.5s ease;
+  }
+  .hook-text::after {
+    content: "";
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    animation: hook-cursor-blink 0.9s step-end infinite;
+  }
+  @keyframes hook-cursor-blink {
+    50% { opacity: 0; }
   }
   blockquote.hook .sig {
     display: block;
@@ -620,11 +632,12 @@
   // Audio-Hook (= immer nur Thema 1, siehe Hook-Regel in skript.py), obwohl die Folge
   // im Schnitt 6-7 Themen hat -- wirkte optisch dominant, gab aber ein falsches Bild vom
   // Folgeninhalt. Erster Versuch (alle Titel als eine Zeile) war redundant zu den
-  // Themen-Chips direkt darunter. Jetzt (Annetts Idee): die Zeile zeigt immer nur EIN
-  // Thema, blendet nach einer Weile weich zum naechsten -- alle Themen kommen nacheinander
-  // dran, ohne die Chips doppelt zu zeigen.
-  var ROTATIONS_INTERVALL_MS = 4500;
-  var ROTATIONS_FADE_MS = 500;
+  // Themen-Chips direkt darunter. Danach (Annetts Idee): die Zeile zeigt immer nur EIN
+  // Thema, alle kommen nacheinander dran. Tipp-Effekt (Annetts Fund auf einer fremden
+  // Website, Squarespace-Landingpage) statt reinem Ausblenden: neues Thema wird
+  // zeichenweise "getippt", blinkender Cursor am Ende (siehe .hook-text::after in <style>).
+  var ROTATIONS_ANZEIGE_MS = 4000;  // wie lange ein fertig getipptes Thema stehen bleibt
+  var ROTATIONS_TIPP_MS = 35;       // Millisekunden pro Zeichen beim Tippen
 
   function starteThemenRotation(el) {
     var titelKodiert = el.getAttribute("data-titel");
@@ -633,14 +646,26 @@
     try { titel = JSON.parse(decodeURIComponent(titelKodiert)); } catch (e) { return; }
     if (titel.length < 2) return; // nur 1 Thema -> nichts zu rotieren
     var index = 0;
-    setInterval(function () {
+
+    function tippeText(text, danach) {
+      var i = 0;
+      el.textContent = "";
+      var tippTimer = setInterval(function () {
+        i++;
+        el.textContent = text.slice(0, i);
+        if (i >= text.length) {
+          clearInterval(tippTimer);
+          setTimeout(danach, ROTATIONS_ANZEIGE_MS);
+        }
+      }, ROTATIONS_TIPP_MS);
+    }
+
+    function naechstesThema() {
       index = (index + 1) % titel.length;
-      el.style.opacity = "0";
-      setTimeout(function () {
-        el.textContent = titel[index];
-        el.style.opacity = "1";
-      }, ROTATIONS_FADE_MS);
-    }, ROTATIONS_INTERVALL_MS);
+      tippeText(titel[index], naechstesThema);
+    }
+
+    setTimeout(naechstesThema, ROTATIONS_ANZEIGE_MS);
   }
 
   function fetchApi(pfad) {
