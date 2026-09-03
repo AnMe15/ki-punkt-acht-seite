@@ -276,6 +276,7 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    transition: opacity 0.5s ease;
   }
   blockquote.hook .sig {
     display: block;
@@ -615,15 +616,31 @@
     return div.innerHTML;
   }
 
-  function hookAusSkript(scriptText) {
-    if (!scriptText) return "";
-    // 31.08.-Fund: seit skript.py ">>>THEMA<<<"-Markerzeilen vor jedem Themenwechsel
-    // einfuegt (fuers Audio-Chunking in produce.py, siehe podcast_config.py), stand diese
-    // Zeile hier woertlich als Zitat auf der Seite -- Markerzeilen ueberspringen.
-    var zeilen = scriptText.split("\n").filter(function (z) { return z.trim() !== ">>>THEMA<<<"; });
-    var ersteZeile = zeilen[0] || "";
-    var doppelpunkt = ersteZeile.indexOf(":");
-    return doppelpunkt >= 0 ? ersteZeile.slice(doppelpunkt + 1).trim() : ersteZeile.trim();
+  // 03.09.-Fund (Lehrer-Feedback + Annett): die Vorschau-Zeile zeigte bisher nur den
+  // Audio-Hook (= immer nur Thema 1, siehe Hook-Regel in skript.py), obwohl die Folge
+  // im Schnitt 6-7 Themen hat -- wirkte optisch dominant, gab aber ein falsches Bild vom
+  // Folgeninhalt. Erster Versuch (alle Titel als eine Zeile) war redundant zu den
+  // Themen-Chips direkt darunter. Jetzt (Annetts Idee): die Zeile zeigt immer nur EIN
+  // Thema, blendet nach einer Weile weich zum naechsten -- alle Themen kommen nacheinander
+  // dran, ohne die Chips doppelt zu zeigen.
+  var ROTATIONS_INTERVALL_MS = 4500;
+  var ROTATIONS_FADE_MS = 500;
+
+  function starteThemenRotation(el) {
+    var titelKodiert = el.getAttribute("data-titel");
+    if (!titelKodiert) return;
+    var titel;
+    try { titel = JSON.parse(decodeURIComponent(titelKodiert)); } catch (e) { return; }
+    if (titel.length < 2) return; // nur 1 Thema -> nichts zu rotieren
+    var index = 0;
+    setInterval(function () {
+      index = (index + 1) % titel.length;
+      el.style.opacity = "0";
+      setTimeout(function () {
+        el.textContent = titel[index];
+        el.style.opacity = "1";
+      }, ROTATIONS_FADE_MS);
+    }, ROTATIONS_INTERVALL_MS);
   }
 
   function fetchApi(pfad) {
@@ -683,7 +700,9 @@
           badgeSpezial + badgeErzeugt +
         '</div>' +
         '<blockquote class="hook">' +
-          '<span class="hook-text">„' + escapeHtml(hookAusSkript(ep.script_text)) + '"</span>' +
+          '<span class="hook-text" data-titel="' + encodeURIComponent(JSON.stringify(themenListe.map(function (t) { return t.topic_title; }))) + '">' +
+            escapeHtml(themenListe[0] ? themenListe[0].topic_title : "") +
+          '</span>' +
           '<span class="sig">— KI. Punkt Acht.</span>' +
         '</blockquote>' +
         '<div class="topics">' + chips + '</div>' +
@@ -894,6 +913,7 @@
     episoden.forEach(function (ep) { dauerAnzeigen(ep.slug); });
     root.querySelectorAll(".play-btn").forEach(vorschauKnopfVerdrahten);
     root.querySelectorAll(".full-player").forEach(folgeSpielerVerdrahten);
+    root.querySelectorAll(".hook-text").forEach(starteThemenRotation);
   }
 })();
 </script>
