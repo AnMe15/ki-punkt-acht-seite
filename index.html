@@ -672,6 +672,13 @@
       zeile.className = "hook-line hook-line--tippt";
       track.appendChild(zeile);
       gesamtZeilen++;
+      // ERST das Fenster auf die (noch leere) neue Zeile verschieben, DANACH tippen --
+      // sonst baut sich die Zeile unsichtbar ausserhalb des sichtbaren Bereichs auf und
+      // "erscheint" beim Reinrutschen bereits fertig getippt (04.09.-Fund, Annett).
+      if (gesamtZeilen > TICKER_MAX_ZEILEN) {
+        var zeilenHoehePx = zeile.getBoundingClientRect().height;
+        track.style.transform = "translateY(-" + ((gesamtZeilen - TICKER_MAX_ZEILEN) * zeilenHoehePx) + "px)";
+      }
       var i = 0;
       var tippTimer = setInterval(function () {
         i++;
@@ -679,10 +686,6 @@
         if (i >= text.length) {
           clearInterval(tippTimer);
           zeile.classList.remove("hook-line--tippt");
-          if (gesamtZeilen > TICKER_MAX_ZEILEN) {
-            var zeilenHoehePx = zeile.getBoundingClientRect().height;
-            track.style.transform = "translateY(-" + ((gesamtZeilen - TICKER_MAX_ZEILEN) * zeilenHoehePx) + "px)";
-          }
           setTimeout(danach, TICKER_ZEILEN_PAUSE_MS);
         }
       }, TICKER_TIPP_MS);
