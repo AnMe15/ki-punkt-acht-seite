@@ -271,22 +271,27 @@
     line-height: 1.45;
     color: var(--ink);
   }
+  /* 04.09.-Fund (Annett): das feste Ausklappen/Einklappen einzelner Zeilen liess das
+     ganze Kartenfenster mitwachsen/schrumpfen -- alles darunter (Buttons, "Quellen
+     anzeigen") ist dabei mitgewandert, Verklick-Risiko. Jetzt: .hook-viewport hat eine
+     FESTE Hoehe (genau 3 Zeilen), Kartenfenster aendert sich nie mehr. Der Text-Track
+     darin waechst weiter normal nach unten, wird aber per transform nach oben verschoben,
+     sobald mehr als 3 Zeilen entstanden sind -- fuer den Betrachter sieht das wie
+     "aelteste Zeile rutscht oben raus" aus, ohne dass sich der sichtbare Rahmen bewegt. */
+  .hook-viewport {
+    height: 4.8em; /* 3 Zeilen a 1.6em, siehe .hook-line line-height */
+    overflow: hidden;
+  }
   .hook-track {
     display: flex;
     flex-direction: column;
+    transition: transform 0.4s ease;
   }
   .hook-line {
-    line-height: 1.5;
+    line-height: 1.6em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-height: 1.5em;
-    opacity: 1;
-    transition: max-height 0.4s ease, opacity 0.3s ease;
-  }
-  .hook-line--verlassend {
-    max-height: 0;
-    opacity: 0;
   }
   .hook-line--tippt::after {
     content: "";
@@ -660,11 +665,13 @@
     if (!titel.length) return;
     var track = viewport.querySelector(".hook-track");
     var index = 0;
+    var gesamtZeilen = 0; // Zeilen seit Start, nie zurueckgesetzt -- steuert nur den Verschub
 
     function tippeZeile(text, danach) {
       var zeile = document.createElement("div");
       zeile.className = "hook-line hook-line--tippt";
       track.appendChild(zeile);
+      gesamtZeilen++;
       var i = 0;
       var tippTimer = setInterval(function () {
         i++;
@@ -672,13 +679,9 @@
         if (i >= text.length) {
           clearInterval(tippTimer);
           zeile.classList.remove("hook-line--tippt");
-          var kinder = track.children;
-          if (kinder.length > TICKER_MAX_ZEILEN) {
-            var alteZeile = kinder[0];
-            alteZeile.classList.add("hook-line--verlassend");
-            setTimeout(function () {
-              if (alteZeile.parentNode) alteZeile.parentNode.removeChild(alteZeile);
-            }, 400);
+          if (gesamtZeilen > TICKER_MAX_ZEILEN) {
+            var zeilenHoehePx = zeile.getBoundingClientRect().height;
+            track.style.transform = "translateY(-" + ((gesamtZeilen - TICKER_MAX_ZEILEN) * zeilenHoehePx) + "px)";
           }
           setTimeout(danach, TICKER_ZEILEN_PAUSE_MS);
         }
