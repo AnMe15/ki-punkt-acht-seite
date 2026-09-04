@@ -271,13 +271,24 @@
     line-height: 1.45;
     color: var(--ink);
   }
-  .hook-text {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .hook-track {
+    display: flex;
+    flex-direction: column;
   }
-  .hook-text::after {
+  .hook-line {
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 1.5em;
+    opacity: 1;
+    transition: max-height 0.4s ease, opacity 0.3s ease;
+  }
+  .hook-line--verlassend {
+    max-height: 0;
+    opacity: 0;
+  }
+  .hook-line--tippt::after {
     content: "";
     display: inline-block;
     width: 2px;
@@ -632,40 +643,54 @@
   // Audio-Hook (= immer nur Thema 1, siehe Hook-Regel in skript.py), obwohl die Folge
   // im Schnitt 6-7 Themen hat -- wirkte optisch dominant, gab aber ein falsches Bild vom
   // Folgeninhalt. Erster Versuch (alle Titel als eine Zeile) war redundant zu den
-  // Themen-Chips direkt darunter. Danach (Annetts Idee): die Zeile zeigt immer nur EIN
-  // Thema, alle kommen nacheinander dran. Tipp-Effekt (Annetts Fund auf einer fremden
-  // Website, Squarespace-Landingpage) statt reinem Ausblenden: neues Thema wird
-  // zeichenweise "getippt", blinkender Cursor am Ende (siehe .hook-text::after in <style>).
-  var ROTATIONS_ANZEIGE_MS = 4000;  // wie lange ein fertig getipptes Thema stehen bleibt
-  var ROTATIONS_TIPP_MS = 35;       // Millisekunden pro Zeichen beim Tippen
+  // Themen-Chips direkt darunter. Zweiter Versuch (eine Zeile, per Tipp-Effekt ersetzt)
+  // war Annett zu wenig -- jetzt (Annetts Wunsch, Ticker-Prinzip): Zeilen bauen sich
+  // nacheinander auf (Zeile 1 tippen, direkt danach Zeile 2 darunter, dann Zeile 3),
+  // ab der VIERTEN Zeile rutscht die aelteste weich nach oben raus -- immer max. 3
+  // Zeilen gleichzeitig sichtbar, alle Themen kommen der Reihe nach dran.
+  var TICKER_TIPP_MS = 35;         // Millisekunden pro Zeichen beim Tippen
+  var TICKER_ZEILEN_PAUSE_MS = 500; // Pause nach einer fertigen Zeile, bevor die naechste startet
+  var TICKER_MAX_ZEILEN = 3;
 
-  function starteThemenRotation(el) {
-    var titelKodiert = el.getAttribute("data-titel");
+  function starteThemenTicker(viewport) {
+    var titelKodiert = viewport.getAttribute("data-titel");
     if (!titelKodiert) return;
     var titel;
     try { titel = JSON.parse(decodeURIComponent(titelKodiert)); } catch (e) { return; }
-    if (titel.length < 2) return; // nur 1 Thema -> nichts zu rotieren
+    if (!titel.length) return;
+    var track = viewport.querySelector(".hook-track");
     var index = 0;
 
-    function tippeText(text, danach) {
+    function tippeZeile(text, danach) {
+      var zeile = document.createElement("div");
+      zeile.className = "hook-line hook-line--tippt";
+      track.appendChild(zeile);
       var i = 0;
-      el.textContent = "";
       var tippTimer = setInterval(function () {
         i++;
-        el.textContent = text.slice(0, i);
+        zeile.textContent = text.slice(0, i);
         if (i >= text.length) {
           clearInterval(tippTimer);
-          setTimeout(danach, ROTATIONS_ANZEIGE_MS);
+          zeile.classList.remove("hook-line--tippt");
+          var kinder = track.children;
+          if (kinder.length > TICKER_MAX_ZEILEN) {
+            var alteZeile = kinder[0];
+            alteZeile.classList.add("hook-line--verlassend");
+            setTimeout(function () {
+              if (alteZeile.parentNode) alteZeile.parentNode.removeChild(alteZeile);
+            }, 400);
+          }
+          setTimeout(danach, TICKER_ZEILEN_PAUSE_MS);
         }
-      }, ROTATIONS_TIPP_MS);
+      }, TICKER_TIPP_MS);
     }
 
-    function naechstesThema() {
+    function naechsteZeile() {
       index = (index + 1) % titel.length;
-      tippeText(titel[index], naechstesThema);
+      tippeZeile(titel[index], naechsteZeile);
     }
 
-    setTimeout(naechstesThema, ROTATIONS_ANZEIGE_MS);
+    tippeZeile(titel[0], naechsteZeile);
   }
 
   function fetchApi(pfad) {
@@ -725,9 +750,9 @@
           badgeSpezial + badgeErzeugt +
         '</div>' +
         '<blockquote class="hook">' +
-          '<span class="hook-text" data-titel="' + encodeURIComponent(JSON.stringify(themenListe.map(function (t) { return t.topic_title; }))) + '">' +
-            escapeHtml(themenListe[0] ? themenListe[0].topic_title : "") +
-          '</span>' +
+          '<div class="hook-viewport" data-titel="' + encodeURIComponent(JSON.stringify(themenListe.map(function (t) { return t.topic_title; }))) + '">' +
+            '<div class="hook-track"></div>' +
+          '</div>' +
           '<span class="sig">— KI. Punkt Acht.</span>' +
         '</blockquote>' +
         '<div class="topics">' + chips + '</div>' +
@@ -938,7 +963,7 @@
     episoden.forEach(function (ep) { dauerAnzeigen(ep.slug); });
     root.querySelectorAll(".play-btn").forEach(vorschauKnopfVerdrahten);
     root.querySelectorAll(".full-player").forEach(folgeSpielerVerdrahten);
-    root.querySelectorAll(".hook-text").forEach(starteThemenRotation);
+    root.querySelectorAll(".hook-viewport").forEach(starteThemenTicker);
   }
 })();
 </script>
