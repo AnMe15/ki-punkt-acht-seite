@@ -231,6 +231,66 @@
     margin: clamp(0.8rem, 2.2vh, 2.2rem) 0 clamp(0.5rem, 1.2vh, 1rem);
   }
 
+  /* 06.09.-Fund (Annett): am Wochenende zeigte die Seite die Freitagsfolge unveraendert
+     unter "Neueste Folge" -- die Folge selbst sagt aber hoerbar "Heute ist Freitag", was am
+     Samstag/Sonntag falsch wirkt. Eigene, zusaetzliche Karte NUR am Wochenende sichtbar
+     (reines Browser-Datum, siehe Skript unten) -- bestehende Karten-Logik bleibt komplett
+     unangetastet. Erste Fassung nutzte den Navy-Verlauf des Hero-Banners direkt darunter --
+     Annett fand das "zum Ueberladen", direkt unter dem grossen blauen Header. Jetzt: helle
+     Weiss-zu-Blau-Flaeche mit Akzent-Rand, setzt sich klar vom Header ab, bleibt aber in der
+     Markenfarbwelt. Countdown-Zahlen mit leichtem 3D-Praegeeffekt (rein optisch). */
+  .weekend-banner {
+    background: linear-gradient(120deg, #FFFFFF 0%, #C8D8FF 100%);
+    border: 1.5px solid rgba(232,114,14,0.4);
+    border-radius: 20px;
+    padding: 1.3rem 1.5rem;
+    margin-bottom: 0.2rem;
+    color: var(--ink);
+    box-shadow: 0 10px 26px rgba(31,58,168,0.10);
+  }
+  .weekend-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+  }
+  .weekend-text { display: flex; align-items: center; gap: 0.8rem; }
+  .weekend-icon { flex: 0 0 auto; }
+  .weekend-icon .steam {
+    transform-box: fill-box; transform-origin: bottom center;
+    animation: weekend-steam-rise 2.6s ease-in-out infinite;
+  }
+  .weekend-icon .steam2 { animation-delay: 0.9s; }
+  .weekend-icon .steam3 { animation-delay: 1.7s; }
+  @keyframes weekend-steam-rise {
+    0% { transform: translateY(3px) scaleY(0.85); opacity: 0; }
+    30% { opacity: 0.85; }
+    75% { opacity: 0.35; }
+    100% { transform: translateY(-10px) scaleY(1.15); opacity: 0; }
+  }
+  .weekend-headline { font-weight: 600; font-size: 0.98rem; line-height: 1.4; color: var(--ink); }
+  .weekend-sub { font-size: 0.82rem; color: var(--ink-soft); margin-top: 0.2rem; }
+  .weekend-countdown { display: flex; align-items: center; gap: 0.45rem; }
+  .cd-unit {
+    display: flex; flex-direction: column; align-items: center;
+    background: linear-gradient(160deg, #F2F6FF 0%, #E0E9FF 100%);
+    border-radius: 10px;
+    padding: 0.35rem 0.65rem; min-width: 2.8rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -2px 3px rgba(31,58,168,0.12), 0 2px 5px rgba(31,58,168,0.15);
+  }
+  .cd-num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 1.3rem; font-weight: 700;
+    color: var(--accent); line-height: 1;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7), 0 2px 3px rgba(31,58,168,0.25);
+  }
+  .cd-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-top: 0.15rem; }
+  .cd-sep { font-size: 1.2rem; font-weight: 700; color: #B9C6EA; }
+  @media (max-width: 480px) {
+    .weekend-content { justify-content: center; text-align: center; }
+    .weekend-text { flex-direction: column; }
+  }
+
   .episode {
     background: var(--surface);
     border: 1px solid var(--rule);
@@ -952,9 +1012,93 @@
     badge.title = "Produktionskosten dieser Folge: " + betrag + " €";
   }
 
+  // 06.09.-Fund (Annett): am Wochenende zeigte die Seite die Freitagsfolge weiterhin unter
+  // "Neueste Folge", obwohl die Folge selbst hoerbar "Heute ist Freitag" sagt -- am Samstag/
+  // Sonntag wirkt das falsch. Rein additiv: eigene Banner-Karte + umbenannte Ueberschrift,
+  // sichtbar solange die neueste Folge in der DB die Freitagsfolge ist (siehe istWochenende
+  // in seiteRendern -- datenbasiert, nicht kalenderfest, damit der Banner auch bei einer
+  // verspaeteten Montagsfolge automatisch bis zur echten neuen Folge stehen bleibt).
+  function baueWochenendBanner(letzteFolge) {
+    var wochentagLetzteFolge = WOCHENTAGE[(new Date(letzteFolge.publish_date + "T00:00:00").getDay() + 6) % 7];
+    return {
+      label: "Letzte Folge (" + wochentagLetzteFolge + ")",
+      bannerHtml:
+        '<div class="weekend-banner">' +
+          '<div class="weekend-content">' +
+            '<div class="weekend-text">' +
+              '<svg class="weekend-icon" width="40" height="40" viewBox="0 0 48 48" fill="none">' +
+                '<path class="steam steam1" d="M17 18 q-2.5 -3.5 0 -7 q2.5 -3.5 0 -7" stroke="#E8720E" stroke-width="1.8" stroke-linecap="round"/>' +
+                '<path class="steam steam2" d="M23 18 q2.5 -3.5 0 -7 q-2.5 -3.5 0 -7" stroke="#E8720E" stroke-width="1.8" stroke-linecap="round"/>' +
+                '<path class="steam steam3" d="M29 18 q-2.5 -3.5 0 -7 q2.5 -3.5 0 -7" stroke="#E8720E" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>' +
+                '<ellipse cx="23" cy="36.5" rx="14" ry="2.4" stroke="#12182A" stroke-width="1.4" opacity="0.45"/>' +
+                '<path d="M14 20 L32 20 L32 30 A5 5 0 0 1 27 35 L19 35 A5 5 0 0 1 14 30 Z" stroke="#12182A" stroke-width="1.7" opacity="0.85" stroke-linejoin="round"/>' +
+                '<path d="M32 23 Q41 23 41 27.5 Q41 32 32 32" stroke="#12182A" stroke-width="1.7" opacity="0.85" fill="none" stroke-linecap="round"/>' +
+              '</svg>' +
+              '<div>' +
+                '<div class="weekend-headline">Die KI-Welt schläft nicht — wir bleiben dran, holen aber kurz Luft.</div>' +
+                '<div class="weekend-sub">Zurück am Montag, 08:00 Uhr — mit den News vom Wochenende</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="weekend-countdown" id="weekendCountdown">' +
+              '<div class="cd-unit"><span class="cd-num" id="cdStd">00</span><span class="cd-label">Std</span></div>' +
+              '<span class="cd-sep">:</span>' +
+              '<div class="cd-unit"><span class="cd-num" id="cdMin">00</span><span class="cd-label">Min</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+    };
+  }
+
+  // Montag 08:00 der aktuellen Woche ab "von". Bewusst OHNE Vorwaertsrollen auf "naechste
+  // Woche", wenn das Ziel schon vorbei ist: faellt "von" auf einen Montag NACH 08:00 (die
+  // neue Folge verspaetet sich ausnahmsweise ueber die 08:00 hinaus), bleibt das Ziel
+  // "heute 08:00" -- die Differenz wird in aktualisieren() auf 0 begrenzt, der Countdown
+  // zeigt dann "00:00" (= "faellig, kommt jeden Moment"). Ein Sprung auf "6 Tage" waere hier
+  // falsch und wuerde bei einer kurzen Verspaetung woechentlich fuer Verwirrung sorgen.
+  // Erst wenn tatsaechlich ein neuer Kalendertag (Dienstag etc.) erreicht ist, verschiebt
+  // sich das errechnete Ziel automatisch auf den naechsten Montag.
+  function naechsterMontag8Uhr(von) {
+    var m = new Date(von);
+    m.setDate(von.getDate() + ((1 - von.getDay() + 7) % 7));
+    m.setHours(8, 0, 0, 0);
+    return m;
+  }
+
+  function starteWochenendCountdown() {
+    function aktualisieren() {
+      var jetzt = new Date();
+      var montag = naechsterMontag8Uhr(jetzt);
+      var diffMin = Math.max(0, Math.round((montag - jetzt) / 60000));
+      var std = document.getElementById("cdStd");
+      var min = document.getElementById("cdMin");
+      if (std) std.textContent = String(Math.floor(diffMin / 60)).padStart(2, "0");
+      if (min) min.textContent = String(diffMin % 60).padStart(2, "0");
+    }
+    aktualisieren();
+    setInterval(aktualisieren, 60000);
+  }
+
   function seiteRendern(episoden, themen) {
     setzeProduktionskostenTooltip(episoden[0]);
-    var html = '<div class="section-label">Neueste Folge</div>' + baueEpisodeKarte(episoden[0], themen);
+    // 06.09.-Nachfrage (Annett): der Banner soll nicht stur nach Kalendertag ein-/ausgehen,
+    // sondern so lange stehen bleiben, bis die neue Folge tatsaechlich da ist -- auch wenn
+    // die Montagsfolge sich mal verspaetet. Deshalb datenbasiert statt datumsbasiert: Banner
+    // ist an, solange die NEUESTE Folge in der Datenbank noch die Freitagsfolge ist (und
+    // heute nicht zufaellig selbst dieser Freitag ist). Sobald Montags die neue Folge
+    // eintrifft, verschwindet der Banner automatisch beim naechsten Laden -- ganz ohne
+    // Rueckgriff auf die Uhrzeit.
+    var heute = new Date();
+    var heuteDatumStr = heute.getFullYear() + "-" + String(heute.getMonth() + 1).padStart(2, "0") + "-" + String(heute.getDate()).padStart(2, "0");
+    var wochentagLetzteFolge = new Date(episoden[0].publish_date + "T00:00:00").getDay(); // 5 = Freitag
+    var istWochenende = wochentagLetzteFolge === 5 && episoden[0].publish_date !== heuteDatumStr;
+    var abschnittsLabel = "Neueste Folge";
+    var wochenendHtml = "";
+    if (istWochenende) {
+      var banner = baueWochenendBanner(episoden[0]);
+      abschnittsLabel = banner.label;
+      wochenendHtml = banner.bannerHtml;
+    }
+    var html = wochenendHtml + '<div class="section-label">' + abschnittsLabel + '</div>' + baueEpisodeKarte(episoden[0], themen);
 
     if (episoden.length > 1) {
       var aeltereKarten = episoden.slice(1).map(function (ep) { return baueEpisodeKarte(ep, themen); }).join("");
@@ -970,6 +1114,7 @@
     root.querySelectorAll(".play-btn").forEach(vorschauKnopfVerdrahten);
     root.querySelectorAll(".full-player").forEach(folgeSpielerVerdrahten);
     root.querySelectorAll(".hook-viewport").forEach(starteThemenTicker);
+    if (istWochenende) starteWochenendCountdown();
   }
 })();
 </script>
