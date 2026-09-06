@@ -12,6 +12,69 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KI. Acht.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "PodcastSeries",
+      "@id": "https://anme15.github.io/ki-punkt-acht-seite/#podcast",
+      "name": "KI. Punkt Acht.",
+      "description": "Der tägliche KI-News-Podcast: recherchiert, geschrieben und produziert von einer automatisierten Pipeline. Mit Quellenangaben zu jeder Folge.",
+      "url": "https://anme15.github.io/ki-punkt-acht-seite/",
+      "inLanguage": "de",
+      "genre": "Künstliche Intelligenz",
+      "creator": { "@type": "Person", "name": "Annett Mende" }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://anme15.github.io/ki-punkt-acht-seite/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Wie wird KI. Punkt Acht. erstellt?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Recherche, Text und die beiden Sprecherstimmen werden vollständig von Künstlicher Intelligenz erzeugt, ohne menschliche Autoren oder Sprecher — jeden Werktag neu, vor 8 Uhr fertig."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Woher kommen die Quellen?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Jede Meldung basiert auf einer echten, verlinkten Quelle aus internationaler KI-Fachpresse. Die Quellen jeder Folge lassen sich direkt unter der Folge einsehen."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Wie oft erscheint eine neue Folge?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Montag bis Freitag, jeweils vor 8 Uhr morgens. Am Wochenende erscheint keine neue Folge."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Ist der Podcast kostenlos?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Ja, alle Folgen sind kostenlos und ohne Anmeldung direkt auf dieser Seite anzuhören."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Wie lang ist eine Folge?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Meist 9 bis 12 Minuten. Am Freitag, dem Wochenrückblick, etwas länger."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -620,6 +683,24 @@
   footer .sig { color: var(--accent); font-style: italic; font-weight: 600; font-size: 0.92rem; }
   footer .sig-label { display: block; font-style: normal; font-weight: 500; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); opacity: 0.85; margin-top: 0.25rem; }
 
+  /* 07.09.-Neu: kleine FAQ-Sektion fuer GEO/KI-Suchsichtbarkeit (Annetts Wettbewerbs-
+     Vergleich mit KI-Snack). WICHTIG, aus einem echten Fund bei einer anderen Seite
+     gelernt: der sichtbare Text hier MUSS wortgleich mit dem FAQPage-JSON-LD im
+     Bau-Skript (zuhoerer_seite_bauen.py) sein, niemals zwei leicht unterschiedliche
+     Versionen -- sonst genau der Fehler, der bei Sensibilis gefunden und behoben wurde. */
+  .faq-toggle-row { display: flex; gap: 1.6rem; flex-wrap: wrap; margin-top: 0.9rem; }
+  .faq-toggle-row summary { cursor: pointer; opacity: 0.75; }
+  .faq-list { margin-top: 0.7rem; }
+  .faq-item { border-bottom: 1px solid var(--rule); }
+  .faq-item summary {
+    cursor: pointer; padding: 0.9rem 0; font-size: 0.92rem; color: var(--ink);
+    font-weight: 500; list-style: none;
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::before { content: "+"; color: var(--accent); margin-right: 0.6rem; font-weight: 700; }
+  .faq-item[open] summary::before { content: "–"; }
+  .faq-item p { margin: 0 0 1rem; padding-left: 1.35rem; font-size: 0.85rem; color: var(--ink-soft); line-height: 1.6; }
+
   @media (max-width: 560px) {
     h1.wordmark { font-size: 2.1rem; }
     .episode { padding: 1.4rem 1.3rem; }
@@ -662,16 +743,43 @@
   <div>KI. Punkt Acht. — Hinweis gemäß Art. 50 EU AI Act: Recherche, Text und die beiden Sprecherstimmen dieser Sendung werden vollständig durch Künstliche Intelligenz erzeugt, ohne menschliche Autoren oder Sprecher. Kein Skript ohne Quellenangabe, keine Zahl ohne Beleg.</div>
   <div style="margin-top:0.5rem" class="sig">„Es ist Acht.“<span class="sig-label">Unser Motto, jeden Morgen im Podcast</span></div>
   <div style="margin-top:0.9rem; opacity:0.75;">© 2026 Annett Mende</div>
-  <details style="margin-top:0.9rem;">
-    <summary style="cursor:pointer; opacity:0.75;">Impressum</summary>
-    <div style="margin-top:0.6rem; opacity:0.75;">
-      Angaben gemäß § 5 TMG<br>
-      Annett Mende<br>
-      Fileitzen 44<br>
-      29389 Bad Bodenteich<br>
-      E-Mail: amen1@t-online.de
-    </div>
-  </details>
+  <div class="faq-toggle-row">
+    <details>
+      <summary>Impressum</summary>
+      <div style="margin-top:0.6rem; opacity:0.75;">
+        Angaben gemäß § 5 TMG<br>
+        Annett Mende<br>
+        Fileitzen 44<br>
+        29389 Bad Bodenteich<br>
+        E-Mail: amen1@t-online.de
+      </div>
+    </details>
+    <details style="flex:1 1 auto; min-width:200px;">
+      <summary>Häufige Fragen</summary>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>Wie wird KI. Punkt Acht. erstellt?</summary>
+          <p>Recherche, Text und die beiden Sprecherstimmen werden vollständig von Künstlicher Intelligenz erzeugt, ohne menschliche Autoren oder Sprecher — jeden Werktag neu, vor 8 Uhr fertig.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Woher kommen die Quellen?</summary>
+          <p>Jede Meldung basiert auf einer echten, verlinkten Quelle aus internationaler KI-Fachpresse. Die Quellen jeder Folge lassen sich direkt unter der Folge einsehen.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Wie oft erscheint eine neue Folge?</summary>
+          <p>Montag bis Freitag, jeweils vor 8 Uhr morgens. Am Wochenende erscheint keine neue Folge.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Ist der Podcast kostenlos?</summary>
+          <p>Ja, alle Folgen sind kostenlos und ohne Anmeldung direkt auf dieser Seite anzuhören.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Wie lang ist eine Folge?</summary>
+          <p>Meist 9 bis 12 Minuten. Am Freitag, dem Wochenrückblick, etwas länger.</p>
+        </details>
+      </div>
+    </details>
+  </div>
 </footer>
 
 <script>
