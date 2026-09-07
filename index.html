@@ -821,8 +821,11 @@
   // nacheinander auf (Zeile 1 tippen, direkt danach Zeile 2 darunter, dann Zeile 3),
   // ab der VIERTEN Zeile rutscht die aelteste weich nach oben raus -- immer max. 3
   // Zeilen gleichzeitig sichtbar, alle Themen kommen der Reihe nach dran.
-  var TICKER_TIPP_MS = 35;         // Millisekunden pro Zeichen beim Tippen
-  var TICKER_ZEILEN_PAUSE_MS = 500; // Pause nach einer fertigen Zeile, bevor die naechste startet
+  // 07.09.2026-Anpassung (Lehrer konnte im Unterricht die Zeilen nicht mehr lesen,
+  // bevor die naechste kam): Pause nach einer fertigen Zeile deutlich verlaengert,
+  // Tipptempo leicht gedrosselt -- mehr Lesezeit pro Schlagzeile.
+  var TICKER_TIPP_MS = 45;         // Millisekunden pro Zeichen beim Tippen
+  var TICKER_ZEILEN_PAUSE_MS = 2500; // Pause nach einer fertigen Zeile, bevor die naechste startet
   var TICKER_MAX_ZEILEN = 3;
 
   function starteThemenTicker(viewport) {
