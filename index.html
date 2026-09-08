@@ -1160,6 +1160,35 @@
     };
   }
 
+  // 08.09.-Fund (Annett): unter der Woche kann eine Folge ausnahmsweise ausfallen (z.B. eine
+  // zurueckgezogene Folge). Die Seite zeigte dann weiterhin die letzte echte Folge unveraendert
+  // als "Neueste Folge" -- wirkt falsch. Rein additiv, wie beim Wochenend-Banner: eigene
+  // Pausen-Karte (gleiche Optik, kein Countdown -- Rueckkehrzeit ist hier nicht bekannt),
+  // bestehende Karten-/Wochenend-Logik unangetastet. Greift nur, wenn der Wochenend-Fall
+  // NICHT zutrifft (siehe istPausenFall in seiteRendern) -- die betroffene Folge wandert dabei
+  // komplett in "Aeltere Folgen".
+  function bauePausenBanner() {
+    return '' +
+      '<div class="weekend-banner">' +
+        '<div class="weekend-content">' +
+          '<div class="weekend-text">' +
+            '<svg class="weekend-icon" width="40" height="40" viewBox="0 0 48 48" fill="none">' +
+              '<path class="steam steam1" d="M17 18 q-2.5 -3.5 0 -7 q2.5 -3.5 0 -7" stroke="#E8720E" stroke-width="1.8" stroke-linecap="round"/>' +
+              '<path class="steam steam2" d="M23 18 q2.5 -3.5 0 -7 q-2.5 -3.5 0 -7" stroke="#E8720E" stroke-width="1.8" stroke-linecap="round"/>' +
+              '<path class="steam steam3" d="M29 18 q-2.5 -3.5 0 -7 q2.5 -3.5 0 -7" stroke="#E8720E" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>' +
+              '<ellipse cx="23" cy="36.5" rx="14" ry="2.4" stroke="#12182A" stroke-width="1.4" opacity="0.45"/>' +
+              '<path d="M14 20 L32 20 L32 30 A5 5 0 0 1 27 35 L19 35 A5 5 0 0 1 14 30 Z" stroke="#12182A" stroke-width="1.7" opacity="0.85" stroke-linejoin="round"/>' +
+              '<path d="M32 23 Q41 23 41 27.5 Q41 32 32 32" stroke="#12182A" stroke-width="1.7" opacity="0.85" fill="none" stroke-linecap="round"/>' +
+            '</svg>' +
+            '<div>' +
+              '<div class="weekend-headline">Kurze Pause hinter den Kulissen — wir arbeiten an der nächsten Folge.</div>' +
+              '<div class="weekend-sub">Es wird gerade geschraubt und gefeilt. Schau in Kürze wieder vorbei.</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
   // Montag 08:00 der aktuellen Woche ab "von". Bewusst OHNE Vorwaertsrollen auf "naechste
   // Woche", wenn das Ziel schon vorbei ist: faellt "von" auf einen Montag NACH 08:00 (die
   // neue Folge verspaetet sich ausnahmsweise ueber die 08:00 hinaus), bleibt das Ziel
@@ -1202,20 +1231,36 @@
     var heuteDatumStr = heute.getFullYear() + "-" + String(heute.getMonth() + 1).padStart(2, "0") + "-" + String(heute.getDate()).padStart(2, "0");
     var wochentagLetzteFolge = new Date(episoden[0].publish_date + "T00:00:00").getDay(); // 5 = Freitag
     var istWochenende = wochentagLetzteFolge === 5 && episoden[0].publish_date !== heuteDatumStr;
+    // 08.09.-Ergaenzung: Werktags-Ausfall (siehe bauePausenBanner) -- greift nur, wenn der
+    // Wochenend-Fall oben nicht schon zutrifft, heute ein Werktag ist, die neueste Folge nicht
+    // von heute ist, UND ein Zeitpuffer (ab 9 Uhr) verstrichen ist -- sonst wuerde ein ganz
+    // normaler Morgen VOR der taeglichen Veroeffentlichung (die planmaessig vor 8 Uhr kommt)
+    // faelschlich als Ausfall gelten.
+    var heuteWochentag = heute.getDay(); // 0 = So, 6 = Sa
+    var istWerktag = heuteWochentag >= 1 && heuteWochentag <= 5;
+    var istPausenFall = !istWochenende && istWerktag && episoden[0].publish_date !== heuteDatumStr && heute.getHours() >= 9;
+
     var abschnittsLabel = "Neueste Folge";
-    var wochenendHtml = "";
+    var bannerHtml = "";
+    var neuesteKarteHtml = "";
     if (istWochenende) {
       var banner = baueWochenendBanner(episoden[0]);
       abschnittsLabel = banner.label;
-      wochenendHtml = banner.bannerHtml;
+      bannerHtml = banner.bannerHtml;
+      neuesteKarteHtml = baueEpisodeKarte(episoden[0], themen);
+    } else if (istPausenFall) {
+      bannerHtml = bauePausenBanner();
+    } else {
+      neuesteKarteHtml = baueEpisodeKarte(episoden[0], themen);
     }
-    var html = wochenendHtml + '<div class="section-label">' + abschnittsLabel + '</div>' + baueEpisodeKarte(episoden[0], themen);
+    var html = bannerHtml + (neuesteKarteHtml ? ('<div class="section-label">' + abschnittsLabel + '</div>' + neuesteKarteHtml) : "");
 
-    if (episoden.length > 1) {
-      var aeltereKarten = episoden.slice(1).map(function (ep) { return baueEpisodeKarte(ep, themen); }).join("");
+    var aeltereEpisoden = istPausenFall ? episoden : episoden.slice(1);
+    if (aeltereEpisoden.length > 0) {
+      var aeltereKarten = aeltereEpisoden.map(function (ep) { return baueEpisodeKarte(ep, themen); }).join("");
       html += '' +
         '<details class="older-section">' +
-          '<summary class="older-toggle"><span class="chevron">▶</span> Ältere Folgen (' + (episoden.length - 1) + ')</summary>' +
+          '<summary class="older-toggle"><span class="chevron">▶</span> Ältere Folgen (' + aeltereEpisoden.length + ')</summary>' +
           '<div class="older-list">' + aeltereKarten + '</div>' +
         '</details>';
     }
