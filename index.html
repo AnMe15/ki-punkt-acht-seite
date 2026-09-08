@@ -410,6 +410,21 @@
     flex-direction: column;
     transition: transform 0.4s ease;
   }
+  .hook-track[hidden] {
+    display: none;
+  }
+  /* 09.09.2026-Neu: statische Zweit-Ansicht fuer das manuelle Zurueckscrollen (siehe
+     starteThemenTicker) -- zeigt exakt 3 Zeilen aus der eindeutigen Themenliste, kein
+     Transform/Tippeffekt noetig. [hidden]-Regel bewusst explizit, damit sie die
+     display:flex-Regel garantiert schlaegt (gleiche Selektor-Spezifitaet waere sonst
+     Cascade-abhaengig). */
+  .hook-track-manuell {
+    display: flex;
+    flex-direction: column;
+  }
+  .hook-track-manuell[hidden] {
+    display: none;
+  }
   .hook-line {
     line-height: 1.6em;
     white-space: nowrap;
@@ -828,6 +843,23 @@
   var TICKER_ZEILEN_PAUSE_MS = 2500; // Pause nach einer fertigen Zeile, bevor die naechste startet
   var TICKER_MAX_ZEILEN = 3;
 
+  // 09.09.2026-Wunsch (Annett): "wenn ein Thema gerade obenrausgerutscht ist, das ich noch
+  // mal lesen wollte, will ich das per Mausrad zurueckholen koennen". TICKER_AUTO_RESUME_MS:
+  // nach dieser Pause ohne weiteres Scrollen springt der Ticker von selbst wieder in den
+  // Live-Modus zurueck -- kein Extra-Klick noetig, niemand bleibt versehentlich haengen.
+  //
+  // 09.09.-Nachbesserung, noch am selben Tag (Annett hat die erste Fassung sofort beim
+  // Testen durchschaut): der Ticker LAEUFT ENDLOS (naechsteZeile() springt per Modulo immer
+  // wieder an den Anfang) -- die erste Fassung scrollte durch die komplette, immer weiter
+  // wachsende Zeilen-Historie, wodurch jedes Thema nach der ersten kompletten Runde ein
+  // zweites/drittes Mal auftauchte. Jetzt zwei getrennte Ansichten in EINEM Viewport: die
+  // Live-Ansicht (.hook-track, tippt/laeuft wie gehabt endlos weiter, auch waehrend man
+  // manuell schaut -- man verpasst dadurch nichts) und eine STATISCHE manuelle Ansicht
+  // (.hook-track-manuell), die beim Scrollen exakt 3 Zeilen aus der EINDEUTIGEN Themenliste
+  // (titel-Array, jedes Thema genau einmal) zeigt, nie mehr. Kein Transform/Tippeffekt fuer
+  // die manuelle Ansicht noetig, sie zeigt einfach direkt die richtigen 3 Zeilen an.
+  var TICKER_AUTO_RESUME_MS = 4000;
+
   function starteThemenTicker(viewport) {
     var titelKodiert = viewport.getAttribute("data-titel");
     if (!titelKodiert) return;
@@ -835,8 +867,49 @@
     try { titel = JSON.parse(decodeURIComponent(titelKodiert)); } catch (e) { return; }
     if (!titel.length) return;
     var track = viewport.querySelector(".hook-track");
+
+    // Statische Zweit-Ansicht fuer den manuellen Modus, JS-generiert -- kein Eingriff in die
+    // HTML-Vorlage (baueEpisodeKarte) noetig.
+    var manuellTrack = document.createElement("div");
+    manuellTrack.className = "hook-track-manuell";
+    manuellTrack.hidden = true;
+    viewport.appendChild(manuellTrack);
+
     var index = 0;
     var gesamtZeilen = 0; // Zeilen seit Start, nie zurueckgesetzt -- steuert nur den Verschub
+    var manuellModus = false;
+    var manuellIndex = 0; // Index (in titel) der obersten Zeile im manuellen Modus
+    var resumeTimer = null;
+
+    function autoOffsetPx() {
+      var zeile = track.querySelector(".hook-line");
+      var zeilenHoehePx = zeile ? zeile.getBoundingClientRect().height : 0;
+      return Math.max(0, (gesamtZeilen - TICKER_MAX_ZEILEN) * zeilenHoehePx);
+    }
+
+    // Wie viele EINDEUTIGE Themen wurden bereits mindestens einmal angezeigt (bevor der
+    // Ticker die erste komplette Runde beendet hat, wachsend; danach konstant = titel.length,
+    // weil dann wirklich schon alles mindestens einmal dran war). Annetts zweite Vorgabe
+    // ("nur scrollbar, was auch schon gelaufen ist") -- man soll nicht per Scrollen Themen
+    // vorab sehen, die der Ticker noch gar nicht gezeigt hat.
+    function bereitsGezeigteAnzahl() {
+      return Math.min(gesamtZeilen, titel.length);
+    }
+
+    function maxManuellIndex() {
+      return Math.max(0, bereitsGezeigteAnzahl() - TICKER_MAX_ZEILEN);
+    }
+
+    function zeigeManuelleZeilen(startIndex) {
+      manuellTrack.innerHTML = "";
+      var ende = Math.min(startIndex + TICKER_MAX_ZEILEN, bereitsGezeigteAnzahl());
+      for (var i = startIndex; i < ende; i++) {
+        var zeile = document.createElement("div");
+        zeile.className = "hook-line";
+        zeile.textContent = titel[i];
+        manuellTrack.appendChild(zeile);
+      }
+    }
 
     function tippeZeile(text, danach) {
       var zeile = document.createElement("div");
@@ -845,10 +918,10 @@
       gesamtZeilen++;
       // ERST das Fenster auf die (noch leere) neue Zeile verschieben, DANACH tippen --
       // sonst baut sich die Zeile unsichtbar ausserhalb des sichtbaren Bereichs auf und
-      // "erscheint" beim Reinrutschen bereits fertig getippt (04.09.-Fund, Annett).
+      // "erscheint" beim Reinrutschen bereits fertig getippt (04.09.-Fund, Annett). Laeuft
+      // unveraendert im Hintergrund weiter, auch waehrend die manuelle Ansicht sichtbar ist.
       if (gesamtZeilen > TICKER_MAX_ZEILEN) {
-        var zeilenHoehePx = zeile.getBoundingClientRect().height;
-        track.style.transform = "translateY(-" + ((gesamtZeilen - TICKER_MAX_ZEILEN) * zeilenHoehePx) + "px)";
+        track.style.transform = "translateY(-" + autoOffsetPx() + "px)";
       }
       var i = 0;
       var tippTimer = setInterval(function () {
@@ -866,6 +939,31 @@
       index = (index + 1) % titel.length;
       tippeZeile(titel[index], naechsteZeile);
     }
+
+    // Mausrad ueber dem Ticker: nach oben zeigt aeltere, bereits gezeigte Themen (jedes genau
+    // einmal, aus der eindeutigen Liste) -- nach unten wieder Richtung aktuellstes gezeigtes
+    // Thema. Nach TICKER_AUTO_RESUME_MS ohne weiteres Scrollen springt die Ansicht zurueck
+    // zur Live-Ansicht, die die ganze Zeit im Hintergrund normal weiterlief.
+    viewport.addEventListener("wheel", function (e) {
+      if (titel.length <= TICKER_MAX_ZEILEN) return; // passt eh komplett rein, nichts zu scrollen
+      e.preventDefault(); // verhindert, dass die ganze Seite mitscrollt
+
+      if (!manuellModus) {
+        manuellModus = true;
+        manuellIndex = maxManuellIndex(); // nahtloser Einstieg an der zuletzt gezeigten Stelle
+        track.hidden = true;
+        manuellTrack.hidden = false;
+      }
+      manuellIndex = Math.max(0, Math.min(manuellIndex + (e.deltaY > 0 ? 1 : -1), maxManuellIndex()));
+      zeigeManuelleZeilen(manuellIndex);
+
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(function () {
+        manuellModus = false;
+        manuellTrack.hidden = true;
+        track.hidden = false;
+      }, TICKER_AUTO_RESUME_MS);
+    }, { passive: false });
 
     tippeZeile(titel[0], naechsteZeile);
   }
