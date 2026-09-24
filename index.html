@@ -1328,13 +1328,21 @@
     var heute = new Date();
     var heuteDatumStr = heute.getFullYear() + "-" + String(heute.getMonth() + 1).padStart(2, "0") + "-" + String(heute.getDate()).padStart(2, "0");
     var wochentagLetzteFolge = new Date(episoden[0].publish_date + "T00:00:00").getDay(); // 5 = Freitag
-    var istWochenende = wochentagLetzteFolge === 5 && episoden[0].publish_date !== heuteDatumStr;
+    var heuteWochentag = heute.getDay(); // 0 = So, 6 = Sa
+    // 24.09.-Fund (Annett, echter Vorfall: Banner zeigte noch Donnerstag "Zurueck am Montag",
+    // obwohl seit Montag vier Werktage in Folge komplett ausgefallen waren): istWochenende
+    // pruefte bisher NUR "letzte Folge war ein Freitag", ohne jede Grenze, wie lange das gilt --
+    // dadurch blieb die Bedingung waehrend eines mehrtaegigen Ausfalls ab Dienstag dauerhaft
+    // wahr, und istPausenFall (weiter unten, nur im "sonst"-Zweig) kam nie zum Zug. Jetzt
+    // zusaetzlich an das eigentlich gemeinte Fenster gebunden (Sa/So/Mo) -- ab Dienstag greift
+    // stattdessen automatisch der Ausfall-Fall.
+    var istImWochenendFenster = heuteWochentag === 6 || heuteWochentag === 0 || heuteWochentag === 1;
+    var istWochenende = wochentagLetzteFolge === 5 && episoden[0].publish_date !== heuteDatumStr && istImWochenendFenster;
     // 08.09.-Ergaenzung: Werktags-Ausfall (siehe bauePausenBanner) -- greift nur, wenn der
     // Wochenend-Fall oben nicht schon zutrifft, heute ein Werktag ist, die neueste Folge nicht
     // von heute ist, UND ein Zeitpuffer (ab 9 Uhr) verstrichen ist -- sonst wuerde ein ganz
     // normaler Morgen VOR der taeglichen Veroeffentlichung (die planmaessig vor 8 Uhr kommt)
     // faelschlich als Ausfall gelten.
-    var heuteWochentag = heute.getDay(); // 0 = So, 6 = Sa
     var istWerktag = heuteWochentag >= 1 && heuteWochentag <= 5;
     var istPausenFall = !istWochenende && istWerktag && episoden[0].publish_date !== heuteDatumStr && heute.getHours() >= 9;
 
