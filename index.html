@@ -1334,17 +1334,20 @@
     // pruefte bisher NUR "letzte Folge war ein Freitag", ohne jede Grenze, wie lange das gilt --
     // dadurch blieb die Bedingung waehrend eines mehrtaegigen Ausfalls ab Dienstag dauerhaft
     // wahr, und istPausenFall (weiter unten, nur im "sonst"-Zweig) kam nie zum Zug. Jetzt
-    // zusaetzlich an das eigentlich gemeinte Fenster gebunden (Sa/So/Mo) -- ab Dienstag greift
-    // stattdessen automatisch der Ausfall-Fall.
-    var istImWochenendFenster = heuteWochentag === 6 || heuteWochentag === 0 || heuteWochentag === 1;
+    // zusaetzlich an das eigentlich gemeinte Fenster gebunden (Sa/So immer, Mo NUR vor 8 Uhr --
+    // Annetts Praezisierung: die Folge soll planmaessig vor 8 Uhr da sein, danach ist ein
+    // fehlender Montag genauso ein Ausfall wie jeder andere Werktag, kein Wochenend-Fall mehr).
+    var istImWochenendFenster = heuteWochentag === 6 || heuteWochentag === 0 ||
+      (heuteWochentag === 1 && heute.getHours() < 8);
     var istWochenende = wochentagLetzteFolge === 5 && episoden[0].publish_date !== heuteDatumStr && istImWochenendFenster;
     // 08.09.-Ergaenzung: Werktags-Ausfall (siehe bauePausenBanner) -- greift nur, wenn der
     // Wochenend-Fall oben nicht schon zutrifft, heute ein Werktag ist, die neueste Folge nicht
-    // von heute ist, UND ein Zeitpuffer (ab 9 Uhr) verstrichen ist -- sonst wuerde ein ganz
-    // normaler Morgen VOR der taeglichen Veroeffentlichung (die planmaessig vor 8 Uhr kommt)
-    // faelschlich als Ausfall gelten.
+    // von heute ist, UND die planmaessige Veroeffentlichungszeit (8 Uhr) verstrichen ist.
+    // 24.09.-Angleichung (Annett): war vorher 9 Uhr, ein Rest-Puffer nach dem eigentlichen
+    // Deadline -- jetzt auf denselben 8-Uhr-Schnitt wie der Montags-Fall oben vereinheitlicht,
+    // sonst bliebe zwischen 8:00 und 8:59 eine Luecke ohne jeden Banner.
     var istWerktag = heuteWochentag >= 1 && heuteWochentag <= 5;
-    var istPausenFall = !istWochenende && istWerktag && episoden[0].publish_date !== heuteDatumStr && heute.getHours() >= 9;
+    var istPausenFall = !istWochenende && istWerktag && episoden[0].publish_date !== heuteDatumStr && heute.getHours() >= 8;
 
     var abschnittsLabel = "Neueste Folge";
     var bannerHtml = "";
